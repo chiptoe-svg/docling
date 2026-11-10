@@ -233,6 +233,29 @@ Recommended configs by use case:
 
 `max_sampled_frames` caps the total number of frames sampled regardless of mode (default `200`, about 33 minutes at the default 10 s interval; set `None` for no limit). Set `generate_frame_images=False` to skip frame sampling entirely and transcribe only.
 
+### Describing frames
+
+`VideoPipelineOptions` accepts the picture options of the other conversion pipelines. With `do_picture_description=True`, each sampled frame is described by the configured picture description model, local or remote, and the text is stored in the frame's `meta.description`, as for the pictures of a PDF or a Word file. A description gives the frame searchable text: what the screen or the scene shows at that time.
+
+```python
+from docling.datamodel.pipeline_options import (
+    PictureDescriptionApiOptions,
+    VideoPipelineOptions,
+)
+
+pipeline_options = VideoPipelineOptions(
+    do_picture_description=True,
+    picture_description_options=PictureDescriptionApiOptions(
+        url="http://localhost:8000/v1/chat/completions",
+        params={"model": "my-vision-model"},
+        prompt="Describe what this frame of an instructional video shows.",
+    ),
+    enable_remote_services=True,  # required for the API options
+)
+```
+
+Each frame is one request (or one local inference), so prefer scene-change sampling, which gives fewer, more distinct frames, when you describe them.
+
 ### Container handling and time limits
 
 The video pipeline reads each file with the FFmpeg demuxer that matches its extension (`.mp4`/`.mov` as MP4/QuickTime, `.mkv`/`.webm` as Matroska, `.avi` as AVI) and only from the local file itself. A file whose content does not match its extension fails to open instead of being interpreted as another format.

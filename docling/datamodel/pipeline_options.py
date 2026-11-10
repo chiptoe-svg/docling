@@ -1874,7 +1874,7 @@ class AsrPipelineOptions(PipelineOptions):
 from docling.utils.video_frame_sampling import VideoFrameSamplingMode  # noqa: E402
 
 
-class VideoPipelineOptions(PipelineOptions):
+class VideoPipelineOptions(ConvertPipelineOptions):
     """Configuration options for the video pipeline.
 
     Controls ASR transcription, frame sampling strategy, and optional
