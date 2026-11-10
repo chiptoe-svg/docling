@@ -543,3 +543,38 @@ def test_confidence_report_tolerant_to_pages_none() -> None:
     restored = ConfidenceReport.model_validate(legacy_payload)
     assert restored.parse_score == 0.85
     assert restored.pages == {}
+
+
+def test_video_frame_sampling_options_default_to_the_pipeline() -> None:
+    from docling.datamodel.pipeline_options import VideoPipelineOptions
+    from docling.datamodel.service.options import ConvertDocumentsOptions
+
+    options = ConvertDocumentsOptions()
+    pipeline = VideoPipelineOptions()
+
+    assert options.video_frame_sampling_mode == pipeline.frame_sampling_mode
+    assert options.video_frame_interval_seconds == pipeline.frame_interval_seconds
+    assert options.video_cuts_per_minute == pipeline.cuts_per_minute
+    assert options.video_scene_change_prominence == pipeline.scene_change_prominence
+    assert options.video_max_sampled_frames == pipeline.max_sampled_frames
+    assert options.video_generate_frame_images == pipeline.generate_frame_images
+
+
+def test_video_frame_sampling_options_validate() -> None:
+    from docling.datamodel.service.options import ConvertDocumentsOptions
+    from docling.utils.video_frame_sampling import VideoFrameSamplingMode
+
+    options = ConvertDocumentsOptions(
+        video_frame_sampling_mode="scene_change",
+        video_cuts_per_minute=2.0,
+        video_max_sampled_frames=None,
+    )
+    assert options.video_frame_sampling_mode == VideoFrameSamplingMode.SCENE_CHANGE
+    assert options.video_max_sampled_frames is None
+
+    with pytest.raises(ValidationError):
+        ConvertDocumentsOptions(video_frame_sampling_mode="every_frame")
+    with pytest.raises(ValidationError):
+        ConvertDocumentsOptions(video_frame_interval_seconds=0)
+    with pytest.raises(ValidationError):
+        ConvertDocumentsOptions(video_cuts_per_minute=0)
