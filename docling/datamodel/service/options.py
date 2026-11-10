@@ -33,6 +33,7 @@ from docling.datamodel.pipeline_options import (
     ProcessingPipeline,
     TableFormerMode,
     TableStructureOptions,
+    VideoPipelineOptions,
     VlmConvertOptions,
 )
 
@@ -48,6 +49,7 @@ from docling.datamodel.settings import (
     DEFAULT_PAGE_RANGE,
     PageRange,
 )
+from docling.utils.video_frame_sampling import VideoFrameSamplingMode
 
 
 class PictureDescriptionLocal(BaseModel):
@@ -834,6 +836,70 @@ class ConvertDocumentsOptions(BaseModel):
             description="Custom code/formula extraction configuration including model spec and engine options.",
         ),
     ] = None
+
+    # Video frame sampling
+    video_frame_sampling_mode: Annotated[
+        VideoFrameSamplingMode,
+        Field(
+            description=(
+                "How video frames are sampled: at a fixed interval, or at scene changes. "
+                "Scene changes suit slide-based recordings such as lectures."
+            ),
+            examples=[VideoFrameSamplingMode.SCENE_CHANGE],
+        ),
+    ] = VideoPipelineOptions().frame_sampling_mode
+
+    video_frame_interval_seconds: Annotated[
+        float,
+        Field(
+            gt=0,
+            description="Seconds between sampled video frames in fixed_interval mode.",
+            examples=[VideoPipelineOptions().frame_interval_seconds],
+        ),
+    ] = VideoPipelineOptions().frame_interval_seconds
+
+    video_cuts_per_minute: Annotated[
+        Optional[float],
+        Field(
+            gt=0,
+            description=(
+                "Target number of scene cuts per minute in scene_change mode, for example "
+                "2.0 for lectures. Unset calibrates from the video."
+            ),
+            examples=[2.0],
+        ),
+    ] = None
+
+    video_scene_change_prominence: Annotated[
+        Optional[float],
+        Field(
+            ge=0,
+            description=(
+                "Minimum prominence of a scene change in scene_change mode. "
+                "Unset calibrates from the video."
+            ),
+            examples=[0.03],
+        ),
+    ] = None
+
+    video_max_sampled_frames: Annotated[
+        Optional[int],
+        Field(
+            gt=0,
+            description="Maximum number of frames sampled per video. Null for no limit.",
+            examples=[VideoPipelineOptions().max_sampled_frames],
+        ),
+    ] = VideoPipelineOptions().max_sampled_frames
+
+    video_generate_frame_images: Annotated[
+        bool,
+        Field(
+            description=(
+                "If disabled, no frames are sampled and a video yields only its transcript."
+            ),
+            examples=[True],
+        ),
+    ] = VideoPipelineOptions().generate_frame_images
 
     # === NEW: Kind Selection for Pipeline Stages ===
 
