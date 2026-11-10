@@ -23,13 +23,18 @@ from PIL import Image
 from docling.backend.noop_backend import NoOpBackend
 from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 from docling.datamodel.base_models import (
+    ApiImageRequestResult,
     ConversionStatus,
     DoclingComponentType,
     ErrorItem,
     InputFormat,
+    VlmStopReason,
 )
 from docling.datamodel.document import ConversionResult, InputDocument
-from docling.datamodel.pipeline_options import VideoPipelineOptions
+from docling.datamodel.pipeline_options import (
+    PictureDescriptionApiOptions,
+    VideoPipelineOptions,
+)
 from docling.pipeline.asr_transcriber import _ConversationItem, _merge_into_sentences
 from docling.utils.speaker_diarization import DiarizationResult, SpeakerSegment
 from docling.utils.video_frame_sampling import (
@@ -516,3 +521,69 @@ def test_merge_into_sentences_splits_on_full_width_punctuation() -> None:
         (1.0, 2.0),
         (2.0, 4.0),
     ]
+
+
+def test_sampled_frames_get_picture_descriptions(
+    video_pipeline_module,
+    mock_asr_factory,
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """do_picture_description describes the sampled frames, as it does the
+    pictures of other formats."""
+    options = VideoPipelineOptions(
+        accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU),
+        enable_remote_services=True,
+        do_picture_description=True,
+        picture_description_options=PictureDescriptionApiOptions(
+            url="http://test.api/v1/chat/completions"
+        ),
+    )
+    pipeline = video_pipeline_module.VideoPipeline(options)
+    mock_asr_factory.transcribe.return_value = [
+        _ConversationItem(text="press start.", start_time=1.0, end_time=2.0),
+    ]
+    _stub_ffmpeg(video_pipeline_module, monkeypatch)
+    monkeypatch.setattr(video_pipeline_module, "_extract_audio", _fake_extract_audio)
+    _stub_sampler(
+        video_pipeline_module,
+        monkeypatch,
+        video_pipeline_module.FixedIntervalFrameSampler,
+        [_sample_frame(color="red", timestamp=0.5)],
+    )
+
+    with patch(
+        "docling.models.stages.picture_description.picture_description_api_model.api_image_request",
+        return_value=ApiImageRequestResult(
+            "A red test frame.", 5, VlmStopReason.END_OF_SEQUENCE
+        ),
+    ) as request:
+        conv_res = pipeline.execute(
+            _make_video_conv_res(tmp_path).input, raises_on_error=True
+        )
+
+    (picture,) = conv_res.document.pictures
+    assert picture.meta.description.text == "A red test frame."
+    assert request.call_count == 1
+    assert conv_res.document.texts[0].text == "press start."
+
+
+def test_frames_are_not_described_by_default(
+    video_pipeline, video_pipeline_module, mock_asr_factory, tmp_path, monkeypatch
+) -> None:
+    mock_asr_factory.transcribe.return_value = []
+    _stub_ffmpeg(video_pipeline_module, monkeypatch)
+    monkeypatch.setattr(video_pipeline_module, "_extract_audio", _fake_extract_audio)
+    _stub_sampler(
+        video_pipeline_module,
+        monkeypatch,
+        video_pipeline_module.FixedIntervalFrameSampler,
+        [_sample_frame(color="red", timestamp=0.5)],
+    )
+
+    conv_res = video_pipeline.execute(
+        _make_video_conv_res(tmp_path).input, raises_on_error=True
+    )
+
+    (picture,) = conv_res.document.pictures
+    assert picture.meta is None or picture.meta.description is None

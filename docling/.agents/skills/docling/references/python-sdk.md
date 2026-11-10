@@ -537,7 +537,9 @@ Video files (`.mp4`, `.mov`, `.mkv`, `.webm`, `.avi`) use `VideoPipeline` with
 `VideoPipelineOptions`, which also samples frames. `max_sampled_frames` defaults
 to `200` (set `None` for no limit). When `document_timeout` is set, all FFmpeg
 calls share that budget; running out yields `PARTIAL_SUCCESS` with a `TIMEOUT`
-error (`result.has_timeout_errors()`).
+error (`result.has_timeout_errors()`). `do_picture_description=True` with
+`picture_description_options` describes each sampled frame into its
+`meta.description`, as for the pictures of other formats.
 
 ## Exporting images and tables
 

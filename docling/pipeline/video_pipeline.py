@@ -45,7 +45,7 @@ from docling.pipeline.asr_transcriber import (
     _AsrModelFactory,
     _merge_into_sentences,
 )
-from docling.pipeline.base_pipeline import BasePipeline
+from docling.pipeline.base_pipeline import ConvertPipeline
 from docling.utils.profiling import ProfilingScope, TimeRecorder
 from docling.utils.speaker_diarization import (
     assign_speakers,
@@ -120,7 +120,7 @@ def _extract_audio(video_path: Path, wav_path: Path, runner: FfmpegRunner) -> bo
     return runner.run(argv, "Audio extraction")
 
 
-class VideoPipeline(BasePipeline):
+class VideoPipeline(ConvertPipeline):
     """Pipeline that transcribes a video's audio and samples its frames,
     producing a DoclingDocument with transcript text and frame images
     interleaved by timestamp.
